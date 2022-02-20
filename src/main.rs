@@ -3,7 +3,7 @@ use macroquad::prelude::*;
 
 #[macroquad::main("cellular-automata")]
 async fn main() {
-    let mut image = Image::gen_image_color(100, 100, BLACK);
+    let mut image = Image::gen_image_color(200, 200, BLACK);
     for x in 1..image.width - 1 {
         for y in 1..image.height - 1 {
             if rand::gen_range(0, 3) == 0 {
@@ -12,6 +12,7 @@ async fn main() {
             }
         }
     }
+    let mut fpss: Vec<i32> = Vec::new();
     loop {
         clear_background(BLACK);
 
@@ -48,8 +49,11 @@ async fn main() {
         // };
         set_camera(&Camera2D::from_display_rect(Rect::new(0.0, 0.0, 100.0, 100.0)));
         draw_texture(texture, 0.0, 0.0, WHITE);
-        
-        // println!("{}", get_fps());
+        fpss.push(get_fps());
+        let l = fpss.len().saturating_sub(10);
+        let fps_window = &fpss[l..];
+        let fps = fps_window.iter().sum::<i32>() as f32 / fps_window.len() as f32;
+        println!("{:?}", fps);
         next_frame().await;
     }
 }
