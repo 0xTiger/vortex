@@ -1,16 +1,15 @@
 use macroquad::prelude::*;
 
-const DEAD_CLR: Color = BLACK;
-const ALIVE_CLR: Color = WHITE;
-
-
+const N: usize = 200;
+const DAMPENING: f32 = 0.98;
+#[derive(Clone)]
 struct CellGrid<T> {
     data: Vec<T>,
     width: usize,
     height: usize
 }
 
-impl<T: Clone + Copy + Into<u8>> CellGrid<T> {
+impl<T: Clone + Copy> CellGrid<T> {
     fn get(&self, x: usize, y: usize) -> T {
         let i = y * self.width + x;
         self.data[i]
@@ -27,36 +26,26 @@ impl<T: Clone + Copy + Into<u8>> CellGrid<T> {
                     height: height }
     }
 
-    fn to_colors(&self) -> Vec<Color> {
-        let mut v = Vec::new();
-        for x in &self.data {
-            v.push(Color::from_rgba(x.clone().into(), x.clone().into(), x.clone().into(), 255))
-        }
-        v
-    }
-
-    fn to_texture(&self) -> Texture2D {
-        let mut bytes = Vec::new();
-        for x in &self.data {
-            bytes.push(x.clone().into());
-            bytes.push(x.clone().into());
-            bytes.push(x.clone().into());
-            bytes.push(255);
-        }
-        Texture2D::from_rgba8(self.width as u16, self.height as u16, &bytes)
-    }
+    // fn to_texture(&self) -> Texture2D {
+    //     let mut bytes = Vec::new();
+    //     for x in &self.data {
+    //         bytes.push(x * 255.0);
+    //         bytes.push(x * 255.0);
+    //         bytes.push(x * 255.0);
+    //         bytes.push(255);
+    //     }
+    //     Texture2D::from_rgba8(self.width as u16, self.height as u16, &bytes)
+    // }
 }
 
 
 #[macroquad::main("cellular-automata")]
 async fn main() {
-    let mut cells = CellGrid::new(200, 200, 0);
-    let image = Image::gen_image_color(200, 200, BLACK);
+    let mut cells = CellGrid::new(N, N, 0f32);
     for x in 1..cells.width - 1 {
         for y in 1..cells.height - 1 {
-            if rand::gen_range(0, 3) == 0 {
-                cells.set(x, y, 255);
-
+            if rand::gen_range::<i32>(0, 500) == 0 {
+                cells.set(x, y, 0.5);
             }
         }
     }
@@ -64,29 +53,36 @@ async fn main() {
     
     loop {
         clear_background(BLACK);
+        let mut cells_new = cells.clone();
+        for x in 1..cells.width - 1 {
+            for y in 1..cells.height - 1 {
+                let b = cells.get(x, y);
+                let donation = rand::gen_range::<f32>(0.0, 1.5*b);
+                let donation_split = rand::gen_range::<f32>(0.0, 1.0);
+                let v_donation = donation_split * donation;
+                let h_donation = (1.0 - donation_split) * donation;
+                cells_new.set(x, y - 1, cells_new.get(x, y - 1) + v_donation * DAMPENING);
+                cells_new.set(x - 1, y, cells_new.get(x - 1, y) + h_donation * DAMPENING);
+                cells_new.set(x, y, cells_new.get(x, y) - donation);
+            }
+        }
 
+        // for x in 1..cells.width - 1 {
+        //     for y in 1..cells.height - 1 {
+        //         if rand::gen_range::<i32>(0, 100) == 0 {
+        //             cells_new.set(x, y, (cells_new.get(x, y) * 3.0).clamp(0.0, 0.7));
+        //         }
+        //     }
+        // }
 
         for x in 1..cells.width - 1 {
             for y in 1..cells.height - 1 {
-                let x = x.into();
-                let y = y.into();
-                let alive = cells.get(x, y) > 0;
-                let mut alive_neighbours = 0;
-
-                let neigbours = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), 
-                                            (1, -1), (1, 0), (1, 1)];
-
-                for (a, b) in neigbours.iter() { 
-                    alive_neighbours += (cells.get((x as i32 + a) as usize, (y as i32 + b) as usize) > 0) as u32;
-                }
-
-                if alive && !vec![2, 3].contains(&alive_neighbours){
-                    cells.set(x, y, 0);
-                } else if !alive && alive_neighbours == 3{
-                    cells.set(x, y, 255);
+                if rand::gen_range::<i32>(0, 1000) == 0 {
+                    cells_new.set(x, y, 0.5);
                 }
             }
         }
+
         // let texture = Texture2D::from_image(&image);
         // image.update(&cells.to_colors());
         // texture.update(&image);
@@ -94,7 +90,16 @@ async fn main() {
         //     zoom: Vec2::new(1.0, 1.0),
         //     ..Default::default()
         // };
-        let texture = cells.to_texture();
+        let mut bytes = Vec::new();
+        for x in &cells_new.data {
+            let brightness = (x.clamp(0.0, 1.0) * 255.0) as u8;
+            bytes.push(brightness);
+            bytes.push(brightness);
+            bytes.push(brightness);
+            bytes.push(255);
+        }
+        cells = cells_new;
+        let texture = Texture2D::from_rgba8(cells.width as u16, cells.height as u16, &bytes);
         texture.set_filter(FilterMode::Nearest);
         let m = screen_width().min(screen_height());
         // let m = 800.0;
