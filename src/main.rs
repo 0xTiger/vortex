@@ -2,12 +2,25 @@ use macroquad::prelude::*;
 
 const N: usize = 200;
 const DAMPENING: f32 = 0.98;
+const OCEAN_BLUE: Color = color_u8!(0x33, 0x66, 0xcc, 0xff);    // Wave trough
+const C1X: Color = color_u8!(0xff, 0xff, 0xff, 0xff);    // Wave crest
+
+
+fn final_color(x: f32) -> (f32, f32, f32){
+    let x = x.clamp(0.0, 1.0);
+    let r = OCEAN_BLUE.r*(1.0-x) + WHITE.r*x;
+    let g = OCEAN_BLUE.g*(1.0-x) + WHITE.g*x;
+    let b = OCEAN_BLUE.b*(1.0-x) + WHITE.b*x;
+    (r, g, b)
+}
+
 #[derive(Clone)]
 struct CellGrid<T> {
     data: Vec<T>,
     width: usize,
     height: usize
 }
+
 
 impl<T: Clone + Copy> CellGrid<T> {
     fn get(&self, x: usize, y: usize) -> T {
@@ -25,45 +38,61 @@ impl<T: Clone + Copy> CellGrid<T> {
                     width: width, 
                     height: height }
     }
-
-    // fn to_texture(&self) -> Texture2D {
-    //     let mut bytes = Vec::new();
-    //     for x in &self.data {
-    //         bytes.push(x * 255.0);
-    //         bytes.push(x * 255.0);
-    //         bytes.push(x * 255.0);
-    //         bytes.push(255);
-    //     }
-    //     Texture2D::from_rgba8(self.width as u16, self.height as u16, &bytes)
-    // }
 }
+
+
+impl CellGrid<f32> {
+    fn bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for x in &self.data {
+            
+            let (r, g, b) = final_color(*x);
+            bytes.push((r*255.0) as u8);
+            bytes.push((g*255.0) as u8);
+            bytes.push((b*255.0) as u8);
+            bytes.push(255);
+        }
+        bytes
+    }
+}
+
+
+
+
 
 
 #[macroquad::main("cellular-automata")]
 async fn main() {
-    let mut cells = CellGrid::new(N, N, 0f32);
+    let W = 400;
+    let H = (screen_height() / screen_width() * W as f32) as usize;
+    let mut cells = CellGrid::new(W, H, 0f32);
     for x in 1..cells.width - 1 {
         for y in 1..cells.height - 1 {
             if rand::gen_range::<i32>(0, 500) == 0 {
-                cells.set(x, y, 0.5);
+                cells.set(x, y, 0.8);
             }
         }
     }
     let mut fpss: Vec<i32> = Vec::new();
     
     loop {
-        clear_background(BLACK);
+        clear_background(OCEAN_BLUE);
         let mut cells_new = cells.clone();
-        for x in 1..cells.width - 1 {
-            for y in 1..cells.height - 1 {
+        for x in 0..cells.width {
+            for y in 0..cells.height {
                 let b = cells.get(x, y);
                 let donation = rand::gen_range::<f32>(0.0, 1.5*b);
                 let donation_split = rand::gen_range::<f32>(0.0, 1.0);
                 let v_donation = donation_split * donation;
                 let h_donation = (1.0 - donation_split) * donation;
-                cells_new.set(x, y - 1, cells_new.get(x, y - 1) + v_donation * DAMPENING);
-                cells_new.set(x - 1, y, cells_new.get(x - 1, y) + h_donation * DAMPENING);
+                // let h_donation = rand::gen_range::<f32>(0.0, 0.75*b);
+                // let v_donation = rand::gen_range::<f32>(0.0, 0.75*b);
+                // let donation = h_donation + v_donation;
                 cells_new.set(x, y, cells_new.get(x, y) - donation);
+                if x > 0 && x < cells.width - 1 && y > 0 && y < cells.height - 1 {
+                    cells_new.set(x, y - 1, cells_new.get(x, y - 1) + v_donation * DAMPENING);
+                    cells_new.set(x - 1, y, cells_new.get(x - 1, y) + h_donation * DAMPENING);
+                }
             }
         }
 
@@ -78,38 +107,35 @@ async fn main() {
         for x in 1..cells.width - 1 {
             for y in 1..cells.height - 1 {
                 if rand::gen_range::<i32>(0, 1000) == 0 {
-                    cells_new.set(x, y, 0.5);
+                    cells_new.set(x, y, 0.8);
                 }
             }
         }
 
-        // let texture = Texture2D::from_image(&image);
-        // image.update(&cells.to_colors());
-        // texture.update(&image);
-        // let camera = Camera2D {
-        //     zoom: Vec2::new(1.0, 1.0),
-        //     ..Default::default()
-        // };
-        let mut bytes = Vec::new();
-        for x in &cells_new.data {
-            let brightness = (x.clamp(0.0, 1.0) * 255.0) as u8;
-            bytes.push(brightness);
-            bytes.push(brightness);
-            bytes.push(brightness);
-            bytes.push(255);
-        }
-        cells = cells_new;
-        let texture = Texture2D::from_rgba8(cells.width as u16, cells.height as u16, &bytes);
+        let texture = Texture2D::from_rgba8(cells_new.width as u16, cells_new.height as u16, &cells_new.bytes());
         texture.set_filter(FilterMode::Nearest);
         let m = screen_width().min(screen_height());
-        // let m = 800.0;
-        // set_camera(&Camera2D::from_display_rect(Rect::new(0.0, 0.0, image.width.into(), image.height.into())));
-        draw_texture_ex(texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(Vec2::new(m, m)), ..Default::default()});
+        
+        draw_texture_ex(texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(Vec2::new(screen_width(), screen_height())), ..Default::default()});
+        cells = cells_new;
+
         fpss.push(get_fps());
         let l = fpss.len().saturating_sub(10);
         let fps_window = &fpss[l..];
         let fps = fps_window.iter().sum::<i32>() as f32 / fps_window.len() as f32;
         println!("{:?}", fps);
+        if is_key_down(KeyCode::Enter){
+            let H = (screen_height() / screen_width() * W as f32) as usize;
+            cells = CellGrid::new(W, H, 0f32);
+            for x in 1..cells.width - 1 {
+                for y in 1..cells.height - 1 {
+                    if rand::gen_range::<i32>(0, 500) == 0 {
+                        cells.set(x, y, 0.5);
+                    }
+                }
+            }
+        }
         next_frame().await;
+
     }
 }
