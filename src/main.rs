@@ -3,15 +3,15 @@ use macroquad::prelude::*;
 const N: usize = 200;
 const DAMPENING: f32 = 0.98;
 const OCEAN_BLUE: Color = color_u8!(0x33, 0x66, 0xcc, 0xff);    // Wave trough
-const C1X: Color = color_u8!(0xff, 0xff, 0xff, 0xff);    // Wave crest
 
 
-fn final_color(x: f32) -> (f32, f32, f32){
+fn final_color(x: f32) -> Color {
     let x = x.clamp(0.0, 1.0);
     let r = OCEAN_BLUE.r*(1.0-x) + WHITE.r*x;
     let g = OCEAN_BLUE.g*(1.0-x) + WHITE.g*x;
     let b = OCEAN_BLUE.b*(1.0-x) + WHITE.b*x;
-    (r, g, b)
+    let a = 1.0;
+    Color::new(r, g, b, a)
 }
 
 #[derive(Clone)]
@@ -46,11 +46,11 @@ impl CellGrid<f32> {
         let mut bytes = Vec::new();
         for x in &self.data {
             
-            let (r, g, b) = final_color(*x);
-            bytes.push((r*255.0) as u8);
-            bytes.push((g*255.0) as u8);
-            bytes.push((b*255.0) as u8);
-            bytes.push(255);
+            let c = final_color(*x);
+            bytes.push((c.r*255.0) as u8);
+            bytes.push((c.g*255.0) as u8);
+            bytes.push((c.b*255.0) as u8);
+            bytes.push((c.a*255.0) as u8);
         }
         bytes
     }
@@ -76,7 +76,6 @@ async fn main() {
     let mut fpss: Vec<i32> = Vec::new();
     
     loop {
-        clear_background(OCEAN_BLUE);
         let mut cells_new = cells.clone();
         for x in 0..cells.width {
             for y in 0..cells.height {
@@ -95,14 +94,6 @@ async fn main() {
                 }
             }
         }
-
-        // for x in 1..cells.width - 1 {
-        //     for y in 1..cells.height - 1 {
-        //         if rand::gen_range::<i32>(0, 100) == 0 {
-        //             cells_new.set(x, y, (cells_new.get(x, y) * 3.0).clamp(0.0, 0.7));
-        //         }
-        //     }
-        // }
 
         for x in 1..cells.width - 1 {
             for y in 1..cells.height - 1 {
