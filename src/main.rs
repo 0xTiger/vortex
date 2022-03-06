@@ -77,20 +77,35 @@ async fn main() {
     
     loop {
         let mut cells_new = cells.clone();
+
+        let (m1, m2) = mouse_position();
+        let (c1, c2) = (screen_width() as usize / W, screen_height() as usize / H);
+        let m1 = (m1 as usize).clamp(0, c1*W - 1) / c1;
+        let m2 = (m2 as usize).clamp(0, c2*W - 1) / c2;
+
+        let mpos = Vec2::new(m1 as f32, m2 as f32);
+        show_mouse(false);
         for x in 0..cells.width {
             for y in 0..cells.height {
                 let b = cells.get(x, y);
+                let cellpos = Vec2::new(x as f32, y as f32);
+                let diffpos = cellpos - mpos;
+
                 let donation = rand::gen_range::<f32>(0.0, 1.5*b);
-                let donation_split = rand::gen_range::<f32>(0.0, 1.0);
-                let v_donation = donation_split * donation;
-                let h_donation = (1.0 - donation_split) * donation;
+                let split_max = diffpos.y.abs() / (diffpos.x.abs() + diffpos.y.abs() + std::f32::EPSILON);
+                // println!("{split_max}");
+                // let donation_split = rand::gen_range::<f32>(0.0, 1.0);
+                let v_donation = split_max * donation;
+                let h_donation = (1.0 - split_max) * donation;
                 // let h_donation = rand::gen_range::<f32>(0.0, 0.75*b);
                 // let v_donation = rand::gen_range::<f32>(0.0, 0.75*b);
                 // let donation = h_donation + v_donation;
+                let dx: i32 = if diffpos.x < 0.0 {1} else {-1};
+                let dy: i32 = if diffpos.y < 0.0 {1} else {-1};
                 cells_new.set(x, y, cells_new.get(x, y) - donation);
                 if x > 0 && x < cells.width - 1 && y > 0 && y < cells.height - 1 {
-                    cells_new.set(x, y - 1, cells_new.get(x, y - 1) + v_donation * DAMPENING);
-                    cells_new.set(x - 1, y, cells_new.get(x - 1, y) + h_donation * DAMPENING);
+                    cells_new.set(x, (y as i32 + dy) as usize, cells_new.get(x, (y as i32 + dy) as usize) + v_donation * DAMPENING);
+                    cells_new.set((x as i32 + dx) as usize, y, cells_new.get((x as i32 + dx) as usize, y) + h_donation * DAMPENING);
                 }
             }
         }
