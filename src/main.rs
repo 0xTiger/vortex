@@ -1,6 +1,5 @@
 use macroquad::prelude::*;
 
-const N: usize = 200;
 const DAMPENING: f32 = 0.98;
 const OCEAN_BLUE: Color = color_u8!(0x33, 0x66, 0xcc, 0xff);    // Wave trough
 
@@ -56,11 +55,6 @@ impl CellGrid<f32> {
     }
 }
 
-
-
-
-
-
 #[macroquad::main("cellular-automata")]
 async fn main() {
     let W = 400;
@@ -73,6 +67,7 @@ async fn main() {
             }
         }
     }
+
     let mut fpss: Vec<i32> = Vec::new();
     
     loop {
@@ -120,7 +115,6 @@ async fn main() {
 
         let texture = Texture2D::from_rgba8(cells_new.width as u16, cells_new.height as u16, &cells_new.bytes());
         texture.set_filter(FilterMode::Nearest);
-        let m = screen_width().min(screen_height());
         
         draw_texture_ex(texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(Vec2::new(screen_width(), screen_height())), ..Default::default()});
         cells = cells_new;
