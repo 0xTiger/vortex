@@ -55,11 +55,22 @@ impl CellGrid<f32> {
     }
 }
 
+
+fn screen_dims(longest_side: usize) -> (usize, usize) {
+    if screen_width() > screen_height() {
+        let shortest_side = screen_height() / screen_width() * longest_side as f32;
+        (longest_side, shortest_side as usize)
+    } else {
+        let shortest_side = screen_width() / screen_height() * longest_side as f32;
+        (shortest_side as usize, longest_side)
+    }
+}
+
 #[macroquad::main("cellular-automata")]
 async fn main() {
-    let W = 400;
-    let H = (screen_height() / screen_width() * W as f32) as usize;
-    let mut cells = CellGrid::new(W, H, 0f32);
+    let (w, h) = screen_dims(400);
+
+    let mut cells = CellGrid::new(w, h, 0f32);
     for x in 1..cells.width - 1 {
         for y in 1..cells.height - 1 {
             if rand::gen_range::<i32>(0, 500) == 0 {
@@ -74,9 +85,9 @@ async fn main() {
         let mut cells_new = cells.clone();
 
         let (m1, m2) = mouse_position();
-        let (c1, c2) = (screen_width() as usize / W, screen_height() as usize / H);
-        let m1 = (m1 as usize).clamp(0, c1*W - 1) / c1;
-        let m2 = (m2 as usize).clamp(0, c2*W - 1) / c2;
+        let (c1, c2) = (screen_width() as usize / w, screen_height() as usize / h);
+        let m1 = (m1 as usize).clamp(0, c1*w - 1) / c1;
+        let m2 = (m2 as usize).clamp(0, c2*w - 1) / c2;
 
         let mpos = Vec2::new(m1 as f32, m2 as f32);
         show_mouse(false);
@@ -125,8 +136,8 @@ async fn main() {
         let fps = fps_window.iter().sum::<i32>() as f32 / fps_window.len() as f32;
         println!("{:?}", fps);
         if is_key_down(KeyCode::Enter){
-            let H = (screen_height() / screen_width() * W as f32) as usize;
-            cells = CellGrid::new(W, H, 0f32);
+            let (w, h) = screen_dims(400);
+            cells = CellGrid::new(w, h, 0f32);
             for x in 1..cells.width - 1 {
                 for y in 1..cells.height - 1 {
                     if rand::gen_range::<i32>(0, 500) == 0 {
