@@ -1,7 +1,28 @@
 use macroquad::prelude::*;
+use macroquad::ui::{hash, root_ui, widgets};
 
-const DAMPENING: f32 = 0.98;
 const OCEAN_BLUE: Color = color_u8!(0x33, 0x66, 0xcc, 0xff);    // Wave trough
+
+struct DebounceToggle<F: Fn() -> bool>(F, usize);
+
+impl<F: Fn() -> bool> DebounceToggle<F> {
+    fn new(f: F) -> DebounceToggle<F> {
+        DebounceToggle(f, 0)
+    }
+    fn get(&mut self) -> bool {
+        let DebounceToggle(f, ref mut state) = self;
+
+        *state = match (*state, f()) {
+            (0, true) => 1,
+            (1, false) => 2,
+            (2, true) => 3,
+            (3, false) => 0,
+            (_, _) => *state,
+        };
+
+        *state == 2
+    }
+}
 
 
 fn final_color(x: f32) -> Color {
@@ -80,7 +101,11 @@ async fn main() {
     }
 
     let mut fpss: Vec<i32> = Vec::new();
-    
+    let mut uiopen = DebounceToggle::new(|| is_key_down(KeyCode::Space));
+    let mut spawnprob = 1000f32;
+    let mut dampening = 0.98;
+    let mut transfer = 1.5;
+
     loop {
         let mut cells_new = cells.clone();
 
@@ -91,13 +116,29 @@ async fn main() {
 
         let mpos = Vec2::new(m1 as f32, m2 as f32);
         show_mouse(false);
+
+        
+        if uiopen.get() {
+            show_mouse(true);
+            widgets::Window::new(hash!(), vec2(100., 100.), vec2(300., 200.))
+                .label("UI")
+                .ui(&mut *root_ui(), |ui| {
+                    ui.slider(hash!(), "spawnprob", 500f32..10000f32, &mut spawnprob);
+                    ui.slider(hash!(), "dampening", 0.9f32..1.0f32, &mut dampening);
+                    ui.slider(hash!(), "transfer", 0.0f32..2.0f32, &mut transfer);
+
+        
+                    });
+        }
+
+
         for x in 0..cells.width {
             for y in 0..cells.height {
                 let b = cells.get(x, y);
                 let cellpos = Vec2::new(x as f32, y as f32);
                 let diffpos = cellpos - mpos;
 
-                let donation = rand::gen_range::<f32>(0.0, 1.5*b);
+                let donation = rand::gen_range::<f32>(0.0, transfer*b);
                 let split_max = diffpos.y.abs() / (diffpos.x.abs() + diffpos.y.abs() + std::f32::EPSILON);
                 // println!("{split_max}");
                 // let donation_split = rand::gen_range::<f32>(0.0, 1.0);
@@ -110,15 +151,15 @@ async fn main() {
                 let dy: i32 = if diffpos.y < 0.0 {1} else {-1};
                 cells_new.set(x, y, cells_new.get(x, y) - donation);
                 if x > 0 && x < cells.width - 1 && y > 0 && y < cells.height - 1 {
-                    cells_new.set(x, (y as i32 + dy) as usize, cells_new.get(x, (y as i32 + dy) as usize) + v_donation * DAMPENING);
-                    cells_new.set((x as i32 + dx) as usize, y, cells_new.get((x as i32 + dx) as usize, y) + h_donation * DAMPENING);
+                    cells_new.set(x, (y as i32 + dy) as usize, cells_new.get(x, (y as i32 + dy) as usize) + v_donation * dampening);
+                    cells_new.set((x as i32 + dx) as usize, y, cells_new.get((x as i32 + dx) as usize, y) + h_donation * dampening);
                 }
             }
         }
 
         for x in 1..cells.width - 1 {
             for y in 1..cells.height - 1 {
-                if rand::gen_range::<i32>(0, 1000) == 0 {
+                if rand::gen_range::<i32>(0, spawnprob as i32) == 0 {
                     cells_new.set(x, y, 0.8);
                 }
             }
