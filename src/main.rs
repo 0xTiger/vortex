@@ -25,11 +25,11 @@ impl<F: Fn() -> bool> DebounceToggle<F> {
 }
 
 
-fn final_color(x: f32) -> Color {
+fn final_color(x: f32, gradient: (Color, Color)) -> Color {
     let x = x.clamp(0.0, 1.0);
-    let r = OCEAN_BLUE.r*(1.0-x) + WHITE.r*x;
-    let g = OCEAN_BLUE.g*(1.0-x) + WHITE.g*x;
-    let b = OCEAN_BLUE.b*(1.0-x) + WHITE.b*x;
+    let r = gradient.0.r*(1.0-x) + gradient.1.r*x;
+    let g = gradient.0.g*(1.0-x) + gradient.1.g*x;
+    let b = gradient.0.b*(1.0-x) + gradient.1.b*x;
     let a = 1.0;
     Color::new(r, g, b, a)
 }
@@ -62,11 +62,11 @@ impl<T: Clone + Copy> CellGrid<T> {
 
 
 impl CellGrid<f32> {
-    fn bytes(&self) -> Vec<u8> {
+    fn bytes(&self, gradient: (Color, Color)) -> Vec<u8> {
         let mut bytes = Vec::new();
         for x in &self.data {
             
-            let c = final_color(*x);
+            let c = final_color(*x, gradient);
             bytes.push((c.r*255.0) as u8);
             bytes.push((c.g*255.0) as u8);
             bytes.push((c.b*255.0) as u8);
@@ -105,7 +105,7 @@ async fn main() {
     let mut spawnprob = 1000f32;
     let mut dampening = 0.98;
     let mut transfer = 1.5;
-
+    let mut theme = (OCEAN_BLUE, WHITE);
     loop {
         let mut cells_new = cells.clone();
 
@@ -121,16 +121,30 @@ async fn main() {
         if uiopen.get() {
             show_mouse(true);
             widgets::Window::new(hash!(), vec2(100., 100.), vec2(300., 200.))
-                .label("UI")
+                .label("Options")
                 .ui(&mut *root_ui(), |ui| {
+                    ui.label(None, "Parameters");
                     ui.slider(hash!(), "spawnprob", 500f32..10000f32, &mut spawnprob);
                     ui.slider(hash!(), "dampening", 0.9f32..1.0f32, &mut dampening);
                     ui.slider(hash!(), "transfer", 0.0f32..2.0f32, &mut transfer);
-
-        
+                    ui.label(None, "Themes");
+                    if ui.button(None, "Ocean") {
+                        theme = (OCEAN_BLUE, WHITE);
+                    }
+                    ui.same_line(0.);
+                    if ui.button(None, "Void") {
+                        theme = (BLACK, WHITE);
+                    }
+                    ui.same_line(0.);
+                    if ui.button(None, "Paper") {
+                        theme = (WHITE, BLACK);
+                    }
+                    ui.same_line(0.);
+                    if ui.button(None, "Matrix") {
+                        theme = (BLACK, LIME);
+                    }
                     });
         }
-
 
         for x in 0..cells.width {
             for y in 0..cells.height {
@@ -165,7 +179,7 @@ async fn main() {
             }
         }
 
-        let texture = Texture2D::from_rgba8(cells_new.width as u16, cells_new.height as u16, &cells_new.bytes());
+        let texture = Texture2D::from_rgba8(cells_new.width as u16, cells_new.height as u16, &cells_new.bytes(theme));
         texture.set_filter(FilterMode::Nearest);
         
         draw_texture_ex(texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(Vec2::new(screen_width(), screen_height())), ..Default::default()});
