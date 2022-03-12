@@ -87,25 +87,37 @@ fn screen_dims(longest_side: usize) -> (usize, usize) {
     }
 }
 
-#[macroquad::main("cellular-automata")]
+
+fn get_avg_fps(fpss: &Vec<i32>) -> f32{
+    let l = fpss.len().saturating_sub(10);
+    let fps_window = &fpss[l..];
+    fps_window.iter().sum::<i32>() as f32 / fps_window.len() as f32
+}
+
+
+#[macroquad::main("vortex")]
 async fn main() {
     let (w, h) = screen_dims(400);
+    let mut spawnprob = 0.001;
+    let mut dampening = 0.98;
+    let mut transfer = 1.5;
+    let mut theme = (OCEAN_BLUE, WHITE);
 
     let mut cells = CellGrid::new(w, h, 0f32);
     for x in 1..cells.width - 1 {
         for y in 1..cells.height - 1 {
-            if rand::gen_range::<i32>(0, 500) == 0 {
+            if rand::gen_range::<f32>(0.0, 1.0) < 0.002 {
                 cells.set(x, y, 0.8);
             }
         }
     }
 
+    
     let mut fpss: Vec<i32> = Vec::new();
-    let mut uiopen = DebounceToggle::new(|| is_key_down(KeyCode::Space));
-    let mut spawnprob = 1000f32;
-    let mut dampening = 0.98;
-    let mut transfer = 1.5;
-    let mut theme = (OCEAN_BLUE, WHITE);
+    let mut uiopen = DebounceToggle::new(
+        || is_key_down(KeyCode::Space) 
+        || is_key_down(KeyCode::Tab) 
+        || is_key_down(KeyCode::Enter));
     loop {
         let mut cells_new = cells.clone();
 
@@ -113,18 +125,19 @@ async fn main() {
         let (c1, c2) = (screen_width() as usize / w, screen_height() as usize / h);
         let m1 = (m1 as usize).clamp(0, c1*w - 1) / c1;
         let m2 = (m2 as usize).clamp(0, c2*w - 1) / c2;
-
         let mpos = Vec2::new(m1 as f32, m2 as f32);
         show_mouse(false);
 
         
         if uiopen.get() {
             show_mouse(true);
+            let fps = get_avg_fps(&fpss);
+            root_ui().label(None, &format!("{fps}"));
             widgets::Window::new(hash!(), vec2(100., 100.), vec2(300., 200.))
                 .label("Options")
                 .ui(&mut *root_ui(), |ui| {
                     ui.label(None, "Parameters");
-                    ui.slider(hash!(), "spawnprob", 500f32..10000f32, &mut spawnprob);
+                    ui.slider(hash!(), "spawnprob", 0.0f32..0.003f32, &mut spawnprob);
                     ui.slider(hash!(), "dampening", 0.9f32..1.0f32, &mut dampening);
                     ui.slider(hash!(), "transfer", 0.0f32..2.0f32, &mut transfer);
                     ui.label(None, "Themes");
@@ -173,7 +186,7 @@ async fn main() {
 
         for x in 1..cells.width - 1 {
             for y in 1..cells.height - 1 {
-                if rand::gen_range::<i32>(0, spawnprob as i32) == 0 {
+                if rand::gen_range::<f32>(0.0, 1.0) < spawnprob {
                     cells_new.set(x, y, 0.8);
                 }
             }
@@ -181,26 +194,22 @@ async fn main() {
 
         let texture = Texture2D::from_rgba8(cells_new.width as u16, cells_new.height as u16, &cells_new.bytes(theme));
         texture.set_filter(FilterMode::Nearest);
-        
         draw_texture_ex(texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(Vec2::new(screen_width(), screen_height())), ..Default::default()});
         cells = cells_new;
 
-        fpss.push(get_fps());
-        let l = fpss.len().saturating_sub(10);
-        let fps_window = &fpss[l..];
-        let fps = fps_window.iter().sum::<i32>() as f32 / fps_window.len() as f32;
-        println!("{:?}", fps);
+        
         if is_key_down(KeyCode::Enter){
             let (w, h) = screen_dims(400);
             cells = CellGrid::new(w, h, 0f32);
             for x in 1..cells.width - 1 {
                 for y in 1..cells.height - 1 {
-                    if rand::gen_range::<i32>(0, 500) == 0 {
+                    if rand::gen_range::<f32>(0.0, 1.0) < 0.002 {
                         cells.set(x, y, 0.5);
                     }
                 }
             }
         }
+        fpss.push(get_fps());
         next_frame().await;
 
     }
