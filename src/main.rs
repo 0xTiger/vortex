@@ -112,16 +112,22 @@ async fn main() {
         }
     }
 
-    
     let mut fpss: Vec<i32> = Vec::new();
     let mut uiopen = DebounceToggle::new(
         || is_key_down(KeyCode::Space) 
         || is_key_down(KeyCode::Tab) 
-        || is_key_down(KeyCode::Enter));
+        || is_key_down(KeyCode::Enter)
+        || touches().len() == 2
+    );
     loop {
         let mut cells_new = cells.clone();
 
-        let (m1, m2) = mouse_position();
+        let (m1, m2) = if touches().len() > 0 {
+            let t = touches()[0].position;
+            (t.x, t.y)
+        } else {
+            mouse_position()
+        };
         let (c1, c2) = (screen_width() as usize / w, screen_height() as usize / h);
         let m1 = (m1 as usize).clamp(0, c1*w - 1) / c1;
         let m2 = (m2 as usize).clamp(0, c2*w - 1) / c2;
@@ -131,6 +137,7 @@ async fn main() {
         
         if uiopen.get() {
             show_mouse(true);
+            simulate_mouse_with_touch(true);
             let fps = get_avg_fps(&fpss);
             root_ui().label(None, &format!("{fps}"));
             widgets::Window::new(hash!(), vec2(100., 100.), vec2(300., 200.))
@@ -158,6 +165,8 @@ async fn main() {
                     }
                     });
         }
+        simulate_mouse_with_touch(false);
+
 
         for x in 0..cells.width {
             for y in 0..cells.height {
@@ -211,6 +220,5 @@ async fn main() {
         }
         fpss.push(get_fps());
         next_frame().await;
-
     }
 }
