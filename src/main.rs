@@ -148,21 +148,13 @@ async fn main() {
                     ui.slider(hash!(), "dampening", 0.9f32..1.0f32, &mut dampening);
                     ui.slider(hash!(), "transfer", 0.0f32..2.0f32, &mut transfer);
                     ui.label(None, "Themes");
-                    if ui.button(None, "Ocean") {
-                        theme = (OCEAN_BLUE, WHITE);
-                    }
+                    if ui.button(None, "Ocean") { theme = (OCEAN_BLUE, WHITE); }
                     ui.same_line(0.);
-                    if ui.button(None, "Void") {
-                        theme = (BLACK, WHITE);
-                    }
+                    if ui.button(None, "Void") { theme = (BLACK, WHITE); }
                     ui.same_line(0.);
-                    if ui.button(None, "Paper") {
-                        theme = (WHITE, BLACK);
-                    }
+                    if ui.button(None, "Paper") { theme = (WHITE, BLACK); }
                     ui.same_line(0.);
-                    if ui.button(None, "Matrix") {
-                        theme = (BLACK, LIME);
-                    }
+                    if ui.button(None, "Matrix") { theme = (BLACK, LIME); }
                     });
         }
         simulate_mouse_with_touch(false);
@@ -176,13 +168,8 @@ async fn main() {
 
                 let donation = rand::gen_range::<f32>(0.0, transfer*b);
                 let split_max = diffpos.y.abs() / (diffpos.x.abs() + diffpos.y.abs() + std::f32::EPSILON);
-                // println!("{split_max}");
-                // let donation_split = rand::gen_range::<f32>(0.0, 1.0);
                 let v_donation = split_max * donation;
                 let h_donation = (1.0 - split_max) * donation;
-                // let h_donation = rand::gen_range::<f32>(0.0, 0.75*b);
-                // let v_donation = rand::gen_range::<f32>(0.0, 0.75*b);
-                // let donation = h_donation + v_donation;
                 let dx: i32 = if diffpos.x < 0.0 {1} else {-1};
                 let dy: i32 = if diffpos.y < 0.0 {1} else {-1};
                 cells_new.set(x, y, cells_new.get(x, y) - donation);
