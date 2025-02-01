@@ -190,7 +190,7 @@ async fn main() {
 
         let texture = Texture2D::from_rgba8(cells_new.width as u16, cells_new.height as u16, &cells_new.bytes(theme));
         texture.set_filter(FilterMode::Nearest);
-        draw_texture_ex(texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(Vec2::new(screen_width(), screen_height())), ..Default::default()});
+        draw_texture_ex(&texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(Vec2::new(screen_width(), screen_height())), ..Default::default()});
         cells = cells_new;
 
         
